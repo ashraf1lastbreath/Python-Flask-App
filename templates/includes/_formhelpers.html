@@ -1,0 +1,15 @@
+{% macro render_field(field) %}
+  <div {% if field.errors %}class="control-group error"{% else %}class="control-group"{% endif %}>
+      {% if field.name != "id" %}
+      <label class="control-label">{{ field.label }}</label>
+      {% endif %}
+      <div class="controls">
+          {{ field(**kwargs)|safe }}
+          {% if field.errors %}
+          {% for error in field.errors %}
+          <span class="help-inline">{{ error }}</span>
+          {% endfor %}
+      {% endif %}
+      </div>
+  </div>
+  {% endmacro %}

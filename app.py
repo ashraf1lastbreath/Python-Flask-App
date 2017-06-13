@@ -43,8 +43,8 @@ def product( id):
 # Form Class with WTForms
 class RegisterForm(Form):
     name = StringField('Name', [validators.Length(min = 1, max = 50)])
-    username = StringField('Email', [validators.Length(min = 4, max = 50)])
-    email = StringField('Username', [validators.Length(min = 6, max = 50)])
+    username = StringField('Username', [validators.Length(min = 4, max = 50)])
+    email = StringField('Email', [validators.Length(min = 6, max = 50)])
     password = PasswordField('Password', [
         validators.DataRequired(),
         validators.EqualTo('confirm',message = 'Passwords do not match')
@@ -63,13 +63,40 @@ def register():
         password = sha256_crypt.encrypt(str(form.password.data))
 
         #post into db
-        user_collection.insert_one({'name': name, 'email':email, 'username':username, 'password': password})
+        user_collection.insert_one({'name': name, 'email':email, 'username':username,  'password': password})
         sys.stdout.flush()
         connection.close()
         flash("You have successfully registered !!", 'success')
         return redirect(url_for('register'))
 
     return render_template('register.html', form = form)
+
+
+#route for User Log in
+@app.route('/login', methods = ['GET', 'POST'])
+def login( ):
+    if request.method == 'POST' :
+        
+        #get login form fields
+        username = request.form['username']
+        password_candidate = request.form['password']
+
+        #Find username from db
+        result = user_collection.find_one({'username': username})
+
+        #if username with the specified username in the log in is found
+        if result > 0:
+            password = result['password']
+            #compare passwords
+            if sha256_crypt.verify(password_candidate, password):
+                app.logger.info('PASSWORD MATCHED')
+            else:
+                app.logger.info('PASSWORD NOT MATCHED')
+        else :
+            app.logger.info('NO USER')
+    return render_template('login.html')
+
+
 
 
 

@@ -1,12 +1,12 @@
 from flask import Flask, render_template, flash, redirect, url_for, session, logging, request
 from products import products
 from flask_pymongo import PyMongo
-import pymongo
-import sys
 from pymongo import MongoClient
 from ConfigParser import SafeConfigParser
 from wtforms import Form, StringField, TextAreaField, PasswordField, validators
 from passlib.hash import sha256_crypt
+from functools import wraps
+import sys
 
 #config PyMongo Db
 parser = SafeConfigParser( )
@@ -20,22 +20,27 @@ app = Flask(__name__)
 mongo = PyMongo(app)
 Products = products( )
 
+#Home Page
 @app.route( '/')
 def index( ):
     return render_template('home.html')
 
+#About US
 @app.route( '/about')
 def about( ):
     return render_template('about.html')
 
+#Contact US
 @app.route( '/contact')
 def contact( ):
     return render_template('contact.html')
 
+# All Products
 @app.route('/products')
 def products( ):
     return render_template('products.html' , products = Products)
 
+#Single Product Page
 @app.route('/product/<string:id>/')
 def product( id):
     return render_template('product.html' , id = id)
@@ -52,7 +57,7 @@ class RegisterForm(Form):
     confirm = PasswordField('Confirm Password')
 
         
-#route for register form
+#Register form
 @app.route('/register', methods = ['GET', 'POST'])
 def register():
     form = RegisterForm(request.form)
@@ -72,7 +77,7 @@ def register():
     return render_template('register.html', form = form)
 
 
-#route for User Log in
+#User Log in
 @app.route('/login', methods = ['GET', 'POST'])
 def login( ):
     if request.method == 'POST' :
@@ -89,15 +94,51 @@ def login( ):
             password = result['password']
             #compare passwords
             if sha256_crypt.verify(password_candidate, password):
-                app.logger.info('PASSWORD MATCHED')
+                #successful login
+                session['logged_in'] = True
+                session['username'] = username
+                flash('You are now logged in', 'success')
+                return redirect(url_for('dashboard'))
             else:
-                app.logger.info('PASSWORD NOT MATCHED')
+                #passwords dont match
+                error = 'Invalid Login.'
+                return render_template('login.html', error = error)
+            #close connection
+            connection.close()
         else :
-            app.logger.info('NO USER')
+            #username not found in db
+            error = 'Username not Registered.'
+            return render_template('login.html', error = error)
+
     return render_template('login.html')
 
 
+#decorator to check if user is logged in already
+def is_logged_in(f):
+    @wraps(f)
+    def wrap(*args, **kwargs):
+        if 'logged_in' in session:
+            return f(*args, **kwargs)
+        else:
+            flash('Unauthorised Access. Please log in first', 'danger')
+            return redirect(url_for('login'))
+    return wrap
 
+
+#User Log out
+@app.route('/logout')
+@is_logged_in
+def logout( ):
+    session.clear()
+    flash('You are now logged out', 'success')
+    return redirect(url_for('login'))
+
+
+#User Dashboard
+@app.route('/dashboard')
+@is_logged_in
+def dashboard( ):
+    return render_template('dashboard.html')
 
 
 if __name__ =='__main__':
